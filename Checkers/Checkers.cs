@@ -625,14 +625,34 @@ namespace Checkers
             }
         }
 
-        private bool checkJump(uint color, int pos, int boardType) //boardType is 1st half and 2nd half
+        private bool checkJump(uint oppositeColor, int pos, int boardType, ref string returnDir) //boardType is 1st half and 2nd half
         {
             int topLeft, topRight, botLeft, botRight;
             if (boardType==1) { topLeft = pos - 4;topRight = pos - 3;botLeft = pos + 4;botRight = pos + 5; }
             else { topLeft = pos - 5;topRight = pos - 4;botLeft = pos + 3;botRight = pos + 4; }
-            if ((color & (1U << topLeft)) != 0)
+            if (((oppositeColor & (1U << topLeft)) != 0))
             {
-
+                returnDir = "jump-topleft";
+                return true;
+            }
+            else if(((oppositeColor & (1U << topRight)) != 0))
+            {
+                returnDir = "jump-topright";
+                return true;
+            }
+            else if (((oppositeColor & (1U << botLeft)) != 0))
+            {
+                returnDir = "jump-botleft";
+                return true;
+            }
+            else if (((oppositeColor & (1U << botRight)) != 0))
+            {
+                returnDir = "jump-botright";
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -649,24 +669,54 @@ namespace Checkers
             //this is Reg Move case; //move, jump , red (redking),black(blackking)
             if(color == CheckerType.Red || color == CheckerType.RedKing)
             {
-                //if jumps else move
-
+                
                 for (int i = 0; i <= 24; i += 8) //1st half of the board
                 {
                     for (int j = 0; j <= 3; j++)
                     {
                         if (Convert.ToBoolean(Red & (1 << (i + j)))) //there is a red
                         {
-                            if (Convert.ToBoolean(~(Red | Black) & (1 << (i + j + 4))) || Convert.ToBoolean(~(Red | Black) & (1 << (i + j + 5))) && (j != 3)) // available to move
+                            int topLeft, topRight, botLeft, botRight;
+                            topLeft = (i + j) - 4; topRight = (i + j) - 3; botLeft = (i + j) + 4; botRight = (i + j) + 5;
+                            string jumpDir = "";
+                            //if jumps else move
+                            if (checkJump(black,i+j,1,ref jumpDir))//jumps
                             {
-                                move[moveCount].Red = (Red | 1U << (i+j+4)) ^ (1U << (i+j)) ;
-                                move[moveCount].King = king;
-                                move[moveCount].Black = black;
-                                moveCount++;
+                                
                             }
-                            if (color==CheckerType.RedKing)
+                            else //moves
                             {
-
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << botLeft))) // available to move
+                                {
+                                    move[moveCount].Red = (red | 1U << botLeft) ^ (1U << (i + j));
+                                    move[moveCount].King = king;
+                                    move[moveCount].Black = black;
+                                    moveCount++;
+                                }
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << botRight)) && (j != 3))
+                                {
+                                    move[moveCount].Red = (red | 1U << botRight) ^ (1U << (i + j));
+                                    move[moveCount].King = king;
+                                    move[moveCount].Black = black;
+                                    moveCount++;
+                                }
+                                if (color == CheckerType.RedKing) //extra moves for king
+                                {
+                                    if(Convert.ToBoolean(~(Red | Black) & (1 << topLeft)) && (i >= 8) )
+                                    {
+                                        move[moveCount].Red = (red | 1U << topLeft) ^ (1U << (i + j));
+                                        move[moveCount].King = (king | 1U << topLeft) ^ (1U << (i + j));
+                                        move[moveCount].Black = black;
+                                        moveCount++;
+                                    }
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << topRight)) && (i >= 8) && (j != 3))
+                                    {
+                                        move[moveCount].Red = (red | 1U << topRight) ^ (1U << (i + j));
+                                        move[moveCount].King = (king | 1U << topRight) ^ (1U << (i + j));
+                                        move[moveCount].Black = black;
+                                        moveCount++;
+                                    }
+                                }
                             }
                         }
                     }
