@@ -1,11 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms;
 
 namespace Checkers
@@ -624,39 +627,120 @@ namespace Checkers
                 curPos++;
             }
         }
-
-        private bool checkJump(uint oppositeColor, int pos, int boardType, ref string returnDir) //boardType is 1st half and 2nd half
+        
+        int idx = 0;
+        private bool checkJump(CheckerType yourColor, uint oppositeColor, int pos, int boardType, ref string returnDir, ref int des, ref int res,ref string[] savePath, bool kingorNot) //boardType is 1st half and 2nd half
         {
+            bool makeJump = false;
             int topLeft, topRight, botLeft, botRight;
-            if (boardType==1) { topLeft = pos - 4;topRight = pos - 3;botLeft = pos + 4;botRight = pos + 5; }
-            else { topLeft = pos - 5;topRight = pos - 4;botLeft = pos + 3;botRight = pos + 4; }
-            if (((oppositeColor & (1U << topLeft)) != 0))
+            int topLeftDes, topRightDes, botLeftDes, botRightDes;
+            if (boardType == 1) { topLeft = pos - 4; topRight = pos - 3; botLeft = pos + 4; botRight = pos + 5; topLeftDes = pos - 9; topRightDes = pos - 7; botLeftDes = pos + 7; botRightDes = pos + 9; }
+            else { topLeft = pos - 5; topRight = pos - 4; botLeft = pos + 3; botRight = pos + 4; topLeftDes = pos - 9; topRightDes = pos - 7; botLeftDes = pos + 7; botRightDes = pos + 9; }
+            //if king, if not king
+            if (yourColor == CheckerType.Red || kingorNot)
             {
-                returnDir = "jump-topleft";
-                return true;
+
+                if (((oppositeColor & (1U << botLeft)) != 0) && botLeftDes >= 0 && botLeftDes <= 32 && Convert.ToBoolean(~(Red | Black) & (1 << botLeftDes)))
+                {
+                    makeJump = true;
+                    des = botLeftDes;
+                    returnDir += " jump-botleft";
+                    //savePath = savePath.Concat(new string[] { returnDir }).ToArray();
+                    
+                    if (checkJump(yourColor, oppositeColor, des, boardType, ref returnDir, ref des, ref res,ref savePath,kingorNot))
+                    {
+                        res--;
+                    }
+                    else
+                    {
+                        savePath[idx] = returnDir;
+                        idx++;
+                        
+                    }
+                    returnDir = returnDir.Substring(0, returnDir.Length - 13);
+                    res++;
+                    
+                }
+                
+                if (((oppositeColor & (1U << botRight)) != 0) && botRightDes >= 0 && botRightDes <= 32 && Convert.ToBoolean(~(Red | Black) & (1 << botRightDes)))
+                {
+                    
+                    makeJump = true;
+                    des = botRightDes;
+                    returnDir += " jump-botrigh";
+                    //savePath = savePath.Concat(new string[] { returnDir }).ToArray();
+                    
+                    if (checkJump(yourColor, oppositeColor, des, boardType, ref returnDir, ref des, ref res, ref savePath, kingorNot))
+                    {
+                        res--;
+                    }
+                    else
+                    {
+                        savePath[idx] = returnDir;
+                        idx++;
+                        
+                    }
+                    returnDir = returnDir.Substring(0, returnDir.Length - 13);
+                    res++;
+                   
+                }
+                
             }
-            else if(((oppositeColor & (1U << topRight)) != 0))
+            if (yourColor == CheckerType.Black || kingorNot)
             {
-                returnDir = "jump-topright";
-                return true;
+                if (((oppositeColor & (1U << topLeft)) != 0) && topLeftDes >= 0 && topLeftDes <= 32 && Convert.ToBoolean(~(Red | Black) & (1 << topLeftDes)))
+                {
+                    makeJump = true;
+                    returnDir += " jump-topleft";
+                    des = topLeftDes;
+                    //savePath = savePath.Concat(new string[] { returnDir }).ToArray();
+                    
+                    if (checkJump(yourColor, oppositeColor, des, boardType, ref returnDir, ref des, ref res, ref savePath, kingorNot))
+                    {
+                        res--;
+                    }
+                    else
+                    {
+                        savePath[idx] = returnDir;
+                        idx++;
+                        
+                    }
+                    res++;
+                    returnDir = returnDir.Substring(0, returnDir.Length - 13);
+                }
+                
+                if (((oppositeColor & (1U << topRight)) != 0) && topRightDes >= 0 && topRightDes <= 32 && Convert.ToBoolean(~(Red | Black) & (1 << topRightDes)))
+                {
+                    makeJump = true;
+                    returnDir += " jump-toprigh";
+                    des = topRightDes;
+                    //savePath = savePath.Concat(new string[] { returnDir }).ToArray();
+                    
+                    if (checkJump(yourColor, oppositeColor, des, boardType, ref returnDir, ref des, ref res, ref savePath, kingorNot))
+                    {
+                        res--;
+                    }
+                    else
+                    {
+                        savePath[idx] = returnDir;
+                        idx++;
+                        
+                    }
+                    res++;
+                    returnDir = returnDir.Substring(0, returnDir.Length - 13);
+                }
+                
             }
-            else if (((oppositeColor & (1U << botLeft)) != 0))
+            if (makeJump==true)
             {
-                returnDir = "jump-botleft";
-                return true;
-            }
-            else if (((oppositeColor & (1U << botRight)) != 0))
-            {
-                returnDir = "jump-botright";
                 return true;
             }
             else
             {
+                
                 return false;
             }
         }
-
-
         //Put your game tree here.
         //Use the values Red, Black and King to determine
         //Where the pieces are on the board currently.
@@ -667,52 +751,114 @@ namespace Checkers
         {
             moveCount = 0;
             //this is Reg Move case; //move, jump , red (redking),black(blackking)
-            if(color == CheckerType.Red || color == CheckerType.RedKing)
+            if (color == CheckerType.Red || color == CheckerType.RedKing)
             {
-                
                 for (int i = 0; i <= 24; i += 8) //1st half of the board
                 {
                     for (int j = 0; j <= 3; j++)
                     {
-                        if (Convert.ToBoolean(Red & (1 << (i + j)))) //there is a red
+                        int pos = i + j;
+                        bool kingCheck = false;
+                        if(((king & (1U << pos)) != 0)) { kingCheck = true; }
+                        if (Convert.ToBoolean(Red & (1 << pos))) //there is a red
                         {
+                            
                             int topLeft, topRight, botLeft, botRight;
-                            topLeft = (i + j) - 4; topRight = (i + j) - 3; botLeft = (i + j) + 4; botRight = (i + j) + 5;
+                            topLeft = pos - 4; topRight = pos - 3; botLeft = pos + 4; botRight = pos + 5;
                             string jumpDir = "";
+                            int des=-1000000000;
+                            int totalMove = 0;
+                            string[] path = new string[1000];
                             //if jumps else move
-                            if (checkJump(black,i+j,1,ref jumpDir))//jumps
+                            if (checkJump(color, black, pos, 1, ref jumpDir,ref des, ref totalMove, ref path, kingCheck))//jumps
                             {
-                                
+                                idx = 0;
+                                for(int it=0;it<totalMove;it++)
+                                {
+                                    List<int> tempCaptured = new List<int>();
+                                    int tempDes=pos;
+                                    
+                                    while (path[it]!="")
+                                    {
+                                        topLeft = tempDes - 4; topRight = tempDes - 3; botLeft = tempDes + 4; botRight = tempDes + 5;
+                                        if (path[it].Substring(0,13)==" jump-botleft")
+                                        {
+                                            tempCaptured.Add(botLeft);
+                                            tempDes += 7;
+                                        }
+                                        else if(path[it].Substring(0, 13) == " jump-botrigh")
+                                        {
+                                            tempCaptured.Add(botRight);
+                                            tempDes += 9;
+                                        }
+                                        else if(path[it].Substring(0, 13) == " jump-topleft")
+                                        {
+                                            tempCaptured.Add(topLeft);
+                                            tempDes -= 9;
+                                        }
+                                        else
+                                        {
+                                            tempCaptured.Add(topRight);
+                                            tempDes -= 7;
+                                        }
+                                        path[it] = path[it].Remove(0, 13);
+                                    }
+                                    move[moveCount].Black = black;
+                                    move[moveCount].King = king;
+                                    move[moveCount].Red = red;
+                                    for (int x=0;x<tempCaptured.Count;x++)
+                                    {
+                                        if((king&(1U<<tempCaptured[x]))!=0)
+                                        {
+                                            move[moveCount].King = move[moveCount].King ^ (1U << tempCaptured[x]); //remove king
+                                        }
+                                        move[moveCount].Black = move[moveCount].Black ^ (1U << tempCaptured[x]);
+                                    }
+                                  
+                                    if ((king & (1U << pos)) != 0)
+                                    { 
+                                        move[moveCount].King = (move[moveCount].King | 1U << tempDes) ^ (1U << pos); // move king
+                                    }
+                                    move[moveCount].Red = (move[moveCount].Red | 1U << tempDes) ^ (1U << pos);                                    
+                                    moveCount++;
+                                }
                             }
                             else //moves
                             {
                                 if (Convert.ToBoolean(~(Red | Black) & (1 << botLeft))) // available to move
                                 {
-                                    move[moveCount].Red = (red | 1U << botLeft) ^ (1U << (i + j));
+                                    move[moveCount].Red = red;
+                                    move[moveCount].Red = (move[moveCount].Red | 1U << botLeft) ^ (1U << pos);
+                                    
+                                    //become king
                                     move[moveCount].King = king;
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << botLeft) ^ (1U << pos); }
+                                    if (botLeft>=24&&botLeft<=27) { move[moveCount].King = (move[moveCount].King | 1U << botLeft); }
                                     move[moveCount].Black = black;
                                     moveCount++;
                                 }
                                 if (Convert.ToBoolean(~(Red | Black) & (1 << botRight)) && (j != 3))
                                 {
-                                    move[moveCount].Red = (red | 1U << botRight) ^ (1U << (i + j));
+                                    move[moveCount].Red = (red | 1U << botRight) ^ (1U << pos);
                                     move[moveCount].King = king;
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << botRight) ^ (1U << pos); }
+                                    if (botRight >= 24 && botRight <= 27) { move[moveCount].King = (move[moveCount].King | 1U << botLeft); }
                                     move[moveCount].Black = black;
                                     moveCount++;
                                 }
-                                if (color == CheckerType.RedKing) //extra moves for king
+                                if ((king&(1U<<pos))!=0) //extra moves for king
                                 {
-                                    if(Convert.ToBoolean(~(Red | Black) & (1 << topLeft)) && (i >= 8) )
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << topLeft)) && (i >= 8))
                                     {
-                                        move[moveCount].Red = (red | 1U << topLeft) ^ (1U << (i + j));
-                                        move[moveCount].King = (king | 1U << topLeft) ^ (1U << (i + j));
+                                        move[moveCount].Red = (red | 1U << topLeft) ^ (1U << pos);
+                                        move[moveCount].King = (king | 1U << topLeft) ^ (1U << pos);
                                         move[moveCount].Black = black;
                                         moveCount++;
                                     }
                                     if (Convert.ToBoolean(~(Red | Black) & (1 << topRight)) && (i >= 8) && (j != 3))
                                     {
-                                        move[moveCount].Red = (red | 1U << topRight) ^ (1U << (i + j));
-                                        move[moveCount].King = (king | 1U << topRight) ^ (1U << (i + j));
+                                        move[moveCount].Red = (red | 1U << topRight) ^ (1U << pos);
+                                        move[moveCount].King = (king | 1U << topRight) ^ (1U << pos);
                                         move[moveCount].Black = black;
                                         moveCount++;
                                     }
@@ -726,62 +872,462 @@ namespace Checkers
                 {
                     for (int j = 0; j <= 3; j++)
                     {
-                        if (Convert.ToBoolean(Red & (1 << (i + j))))
+                        int pos = i + j;
+                        bool kingCheck = false;
+                        if (((king & (1U << pos)) != 0)) { kingCheck = true; }
+                        if (Convert.ToBoolean(Red & (1 << pos))) //there is a red
                         {
-                            if (Convert.ToBoolean(~(Red | Black) & (1 << (i + j + 4))) || Convert.ToBoolean(~(Red | Black) & (1 << (i + j + 5))) && (j != 3)) //available to move
+                            
+                            int topLeft, topRight, botLeft, botRight;
+                            topLeft = pos - 5; topRight = pos - 4; botLeft = pos + 3; botRight = pos + 4;
+                            string jumpDir = "";
+                            int des = -1000000000;
+                            int totalMove = 0;
+                            string[] path = new string[1000];
+                            bool becomeKing = false;
+                            //if jumps else move
+                            if (checkJump(color, black, pos, 2, ref jumpDir, ref des, ref totalMove, ref path, kingCheck))//jumps
                             {
-                                move[moveCount].Red = (uint)(Red & (1 << (i + j)));
-                                move[moveCount].King = king;
-                                move[moveCount].Black = black;
-                                moveCount++;
+                                idx = 0;
+                                for (int it = 0; it < totalMove; it++)
+                                {
+                                    List<int> tempCaptured = new List<int>();
+                                    int tempDes = pos;
+
+                                    while (path[it] != "")
+                                    {
+                                        topLeft = tempDes - 5; topRight = tempDes - 4; botLeft = tempDes + 3; botRight = tempDes + 4;
+                                        if (path[it].Substring(0, 13) == " jump-botleft")
+                                        {
+                                            tempCaptured.Add(botLeft);
+                                            tempDes += 7;
+                                        }
+                                        else if (path[it].Substring(0, 13) == " jump-botrigh")
+                                        {
+                                            tempCaptured.Add(botRight);
+                                            tempDes += 9;
+                                        }
+                                        else if (path[it].Substring(0, 13) == " jump-topleft")
+                                        {
+                                            tempCaptured.Add(topLeft);
+                                            tempDes -= 9;
+                                        }
+                                        else
+                                        {
+                                            tempCaptured.Add(topRight);
+                                            tempDes -= 7;
+                                        }
+                                        path[it] = path[it].Remove(0, 13);
+                                    }
+                                    move[moveCount].Red = red;
+                                    move[moveCount].King = king;
+                                    move[moveCount].Black = black;
+                                    for (int x = 0; x < tempCaptured.Count; x++)
+                                    {
+                                        if ((king & (1U << tempCaptured[x])) != 0)
+                                        {
+                                            move[moveCount].King = move[moveCount].King ^ (1U << tempCaptured[x]); //remove king
+                                        }
+                                        move[moveCount].Black = move[moveCount].Black ^ (1U << tempCaptured[x]);
+                                    }
+                                    if (tempDes >= 28 && tempDes <= 31)
+                                    {
+                                        move[moveCount].King = move[moveCount].King | 1U << tempDes; //become king
+                                    }
+                                    if ((king & (1U << pos)) != 0)
+                                    {
+                                        move[moveCount].King = (move[moveCount].King | 1U << tempDes) ^ (1U << pos); //move king
+                                    }
+                                    move[moveCount].Red = (move[moveCount].Red | 1U << tempDes) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                            }
+                            else //moves
+                            {
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << botLeft)) && (j != 0)) // available to move
+                                {
+                                    move[moveCount].Red = (red | 1U << botLeft) ^ (1U << pos);
+                                    move[moveCount].King = king;
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << botLeft) ^ (1U << pos); }
+                                    move[moveCount].Black = black;
+                                    moveCount++;
+                                }
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << botRight)) )
+                                {
+                                    move[moveCount].Red = (red | 1U << botRight) ^ (1U << pos);
+                                    move[moveCount].King = king;
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << botRight) ^ (1U << pos); }
+                                    move[moveCount].Black = black;
+                                    moveCount++;
+                                }
+                                if ((king & (1U << pos)) != 0) //extra moves for king
+                                {
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << topLeft)) && (i >= 8))
+                                    {
+                                        move[moveCount].Red = (red | 1U << topLeft) ^ (1U << pos);
+                                        move[moveCount].King = (king | 1U << topLeft) ^ (1U << pos);
+                                        move[moveCount].Black = black;
+                                        moveCount++;
+                                    }
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << topRight)) && (i >= 8) && (j != 3))
+                                    {
+                                        move[moveCount].Red = (red | 1U << topRight) ^ (1U << pos);
+                                        move[moveCount].King = (king | 1U << topRight) ^ (1U << pos);
+                                        move[moveCount].Black = black;
+                                        moveCount++;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-            
-            
-        }
-        private void ComputerMove()
-        {
 
-            //We'll discuss this more in class, but three unsigned integers store 
-            //the position and type of all checkers. Uncomment the three lines below 
-            //to see an extra red king show up on the board at position 12 when the human
-            //makes a move. Position numbering starts with 0 in the upper-left corner
-
-            //Bitwise manipulation of Red and Kings to add a red king at position 12.
-            //Red = Red | (uint)(1 << 12);
-            //Kings = Kings | (uint)(1 << 12);
-            //drawBoard(Red,Black,Kings);
-
-            //Additionally, you can uncomment the lines below to check if a red king exists at position 12
-            //if (Convert.ToBoolean(Red >> 12 & 1) && Convert.ToBoolean(Kings >> 12 & 1))
-            //{
-            //    MessageBox.Show("Red King at 12");
-            //}
-            //else
-            //{
-            //    MessageBox.Show("No Red King at 12");
-            //}
-            MessageBox.Show("Computer's Turn");
-            int validMove = 0;
-            //1st thing to do is check all the possible move
-            //we're red
-            CheckMove[] InitialMoves = new CheckMove[48];
-            for (int i = 0; i < validMove; i++)
+            if (color == CheckerType.Black || color == CheckerType.BlackKing)  //black
             {
-                InitialMoves[i] = new CheckMove();
+                for (int i = 0; i <= 24; i += 8) //1st half of the board
+                {
+                    for (int j = 0; j <= 3; j++)
+                    {
+                        int pos = i + j;
+                        bool kingCheck = false;
+                        if (((king & (1U << pos)) != 0)) { kingCheck = true; }
+                        if (Convert.ToBoolean(black & (1 << pos))) //there is a black
+                        {
+                            
+                            int topLeft, topRight, botLeft, botRight;
+                            topLeft = pos - 4; topRight = pos - 3; botLeft = pos + 4; botRight = pos + 5;
+                            string jumpDir = "";
+                            int des = -10000000;
+                            int totalMove = 0;
+                            string[] path = new string[1000];
+                           
+                            //if jumps else move
+                            if (checkJump(color, red, pos, 1, ref jumpDir, ref des, ref totalMove, ref path, kingCheck))//jumps
+                            {
+                                idx = 0;
+                                for (int it = 0; it < totalMove; it++)
+                                {
+                                    List<int> tempCaptured = new List<int>();
+                                    int tempDes = pos;
 
+                                    while (path[it] != "")
+                                    {
+                                        topLeft = tempDes - 4; topRight = tempDes - 3; botLeft = tempDes + 4; botRight = tempDes + 5;
+                                        if (path[it].Substring(0, 13) == " jump-botleft")
+                                        {
+                                            tempCaptured.Add(botLeft);
+                                            tempDes += 7;
+                                        }
+                                        else if (path[it].Substring(0, 13) == " jump-botrigh")
+                                        {
+                                            tempCaptured.Add(botRight);
+                                            tempDes += 9;
+                                        }
+                                        else if (path[it].Substring(0, 13) == " jump-topleft")
+                                        {
+                                            tempCaptured.Add(topLeft);
+                                            tempDes -= 9;
+                                        }
+                                        else
+                                        {
+                                            tempCaptured.Add(topRight);
+                                            tempDes -= 7;
+                                        }
+                                        path[it] = path[it].Remove(0, 13);
+                                    }
+                                    move[moveCount].Red = red;
+                                    move[moveCount].King = king;
+                                    move[moveCount].Black = black;
+                                    for (int x = 0; x < tempCaptured.Count; x++)
+                                    {
+                                        if ((king & (1U << tempCaptured[x])) != 0)
+                                        {
+                                            move[moveCount].King = move[moveCount].King ^ (1U << tempCaptured[x]); //remove king
+                                        }
+                                        move[moveCount].Red = move[moveCount].Red ^ (1U << tempCaptured[x]);
+                                    }
+                                    if(tempDes>=0 && tempDes<=3)
+                                    {
+                                        move[moveCount].King = move[moveCount].King | 1U << tempDes; //become king
+                                    }
+                                    if((king&(1U<<pos))!=0)
+                                    {
+                                        move[moveCount].King = (move[moveCount].King | 1U <<tempDes) ^ (1U << pos); //move king
+                                    }
+                                    move[moveCount].Black = (move[moveCount].Black | 1U << tempDes) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                            }
+                            else //moves
+                            {
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << topLeft))) // available to move
+                                {
+                                    move[moveCount].Red = red;
+                                    move[moveCount].King = king;
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << topLeft) ^ (1U << pos); }
+                                    move[moveCount].Black = (black | 1U << topLeft) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << topRight)) && (j != 3))
+                                {
+                                    move[moveCount].Red = red;
+                                    move[moveCount].King = king;
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << topRight) ^ (1U << pos); }
+                                    move[moveCount].Black = (black | 1U << topRight) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                                if ((king & (1U << pos)) != 0) //extra moves for king
+                                {
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << botLeft)) && (i >= 8))
+                                    {
+                                        move[moveCount].Red = red;
+                                        move[moveCount].King = (king | 1U << botLeft) ^ (1U << pos);
+                                        move[moveCount].Black = (black | 1U << botLeft) ^ (1U << pos);
+                                        moveCount++;
+                                    }
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << botRight)) && (i >= 8) && (j != 3))
+                                    {
+                                        move[moveCount].Red =red;
+                                        move[moveCount].King = (king | 1U << botRight) ^ (1U << pos);
+                                        move[moveCount].Black = (black | 1U << botRight) ^ (1U << pos);
+                                        moveCount++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (int i = 4; i <= 28; i += 8) //2nd half of the board
+                {
+                    for (int j = 0; j <= 3; j++)
+                    {
+                        int pos = i + j;
+                        bool kingCheck = false;
+                        if (((king & (1U << pos)) != 0)) { kingCheck = true; }
+                        if (Convert.ToBoolean(Black & (1 << pos))) //there is a red
+                        {
+                            
+                            int topLeft, topRight, botLeft, botRight;
+                            topLeft = pos - 5; topRight = pos - 4; botLeft = pos + 3; botRight = pos + 4;
+                            string jumpDir = "";
+                            int des = -100000000;
+                            int totalMove = 0;
+                            string[] path = new string[1000];
+                            //if jumps else move
+                            if (checkJump(color, red, pos, 2, ref jumpDir, ref des, ref totalMove, ref path, kingCheck))//jumps
+                            {
+                                idx = 0;
+                                for (int it = 0; it < totalMove; it++)
+                                {
+                                    List<int> tempCaptured = new List<int>();
+                                    int tempDes = pos;
+
+                                    while (path[it] != "")
+                                    {
+                                        topLeft = tempDes - 5; topRight = tempDes - 4; botLeft = tempDes + 3; botRight = tempDes + 4;
+                                        if (path[it].Substring(0, 13) == " jump-botleft")
+                                        {
+                                            tempCaptured.Add(botLeft);
+                                            tempDes += 7;
+                                        }
+                                        else if (path[it].Substring(0, 13) == " jump-botrigh")
+                                        {
+                                            tempCaptured.Add(botRight);
+                                            tempDes += 9;
+                                        }
+                                        else if (path[it].Substring(0, 13) == " jump-topleft")
+                                        {
+                                            tempCaptured.Add(topLeft);
+                                            tempDes -= 9;
+                                        }
+                                        else
+                                        {
+                                            tempCaptured.Add(topRight);
+                                            tempDes -= 7;
+                                        }
+                                        path[it] = path[it].Remove(0, 13);
+                                    }
+                                    move[moveCount].Red = red;
+                                    move[moveCount].King = king;
+                                    move[moveCount].Black = black;
+                                    for (int x = 0; x < tempCaptured.Count; x++)
+                                    {
+                                        if ((king & (1U << tempCaptured[x])) != 0)
+                                        {
+                                            move[moveCount].King = move[moveCount].King ^ (1U << tempCaptured[x]); //remove king
+                                        }
+                                        move[moveCount].Red = move[moveCount].Red ^ (1U << tempCaptured[x]);
+                                    }
+                                    if ((king & (1U << pos)) != 0)
+                                    {
+                                        move[moveCount].King = (move[moveCount].King | 1U << tempDes) ^ (1U << pos); //move king
+                                    }
+                                    move[moveCount].Black = (move[moveCount].Black | 1U << tempDes) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                            }
+                            else //moves
+                            {
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << topLeft)) && (j != 0)) // available to move
+                                {
+                                    move[moveCount].Red =red;
+                                    move[moveCount].King = king;
+                                    if (topLeft >= 24 && topLeft <= 27) { move[moveCount].King = (move[moveCount].King | 1U << topLeft); }
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << topLeft) ^ (1U << pos); }
+                                    move[moveCount].Black = (black | 1U << topLeft) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                                if (Convert.ToBoolean(~(Red | Black) & (1 << topRight)))
+                                {
+                                    move[moveCount].Red = red;
+                                    move[moveCount].King = king;
+                                    if (topRight >= 24 && topRight <= 27) { move[moveCount].King = (move[moveCount].King | 1U << topRight); }
+                                    if ((king & (1U << pos)) != 0) { move[moveCount].King = (move[moveCount].King | 1U << topRight) ^ (1U << pos); }
+                                    move[moveCount].Black = (black | 1U << topRight) ^ (1U << pos);
+                                    moveCount++;
+                                }
+                                if ((king & (1U << pos)) != 0) //extra moves for king
+                                {
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << botLeft)) && (i >= 8))
+                                    {
+                                        move[moveCount].Red = red;
+                                        move[moveCount].King = (king | 1U << botLeft) ^ (1U << pos);
+                                        move[moveCount].Black = (black | 1U << botLeft) ^ (1U << pos);
+                                        moveCount++;
+                                    }
+                                    if (Convert.ToBoolean(~(Red | Black) & (1 << botRight)) && (i >= 8) && (j != 3))
+                                    {
+                                        move[moveCount].Red = red;
+                                        move[moveCount].King = (king | 1U << botRight) ^ (1U << pos);
+                                        move[moveCount].Black = (black | 1U << botRight) ^ (1U << pos);
+                                        moveCount++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bool winCondition(uint red,uint black)
+        {
+            if(black==0)
+            {
+                //red win
+                return true;
             }
             
-            GetMoves(InitialMoves, ref validMove, (CheckerType)Red, Black, Red, Kings);
-            
-          
-                    
+            else
+            {
+                return false;
+            }
+        }
+
+        int getHeuristicVal(uint red, uint black, uint king)
+        {
+            int redCount=0, blackCount=0, redKingCount=0, blackKingCount=0;
+            for (int i = 0; i < 32; i++)
+            {
+                if ((black & (1U << i)) != 0 && (king & (1U << i)) != 0)
+                {
+                    blackKingCount=blackKingCount+1;
+                }
+                if ((red & (1U << i)) != 0 && (king & (1U << i)) != 0)
+                {
+                    redKingCount= redKingCount + 1;
+                }
+                if ((black & (1U << i)) != 0 && (king & (1U << i)) == 0)
+                {
+                    blackCount= blackCount + 1;
+                }
+                if ((red & (1U << i)) != 0 && (king & (1U << i)) == 0)
+                {
+                    redCount= redCount + 1;
+                }
+            }
+            return redCount*2 - blackCount*2 + (redKingCount  - blackKingCount );
         }
 
         
+
+        private List<object> ComputerRec(uint redParam, uint blackParam, uint kingParam, int ply,int alpha, int beta, bool Maxplayer)
+        {
+            uint red = 0;
+            uint black = 0;
+            uint king = 0;
+            int evaluation=0;
+            List<object> position = new List<object>() { red, black, king, evaluation };
+
+            if(ply==0)
+            {
+                position[3] = (uint)getHeuristicVal(redParam, blackParam, kingParam);
+                position[0] = redParam; position[1] = blackParam; position[2] = kingParam;
+            }
+
+            CheckMove[] listofMoves = new CheckMove[48];
+            for (int i = 0; i < 48; i++)
+            {
+                listofMoves[i] = new CheckMove();
+            }
+            int totalValidMoves = 0;
+            
+            if (Maxplayer)
+            {
+                int maxVal = int.MinValue;
+                GetMoves(listofMoves, ref totalValidMoves, CheckerType.Red, blackParam, redParam, kingParam);
+                //Thread[] ThreadArr = new Thread[totalValidMoves];
+                for (int i =0;i<totalValidMoves;i++)
+                {
+                    //ThreadArr[i] = new Thread(new ParameterizedThreadStart(ComputerRec(listofMoves[i].Red, listofMoves[i].Black, listofMoves[i].King, ply - 1, alpha, beta, false)))
+                    position[3] = ComputerRec(listofMoves[i].Red, listofMoves[i].Black, listofMoves[i].King,ply-1,alpha,beta,false)[3];
+                    maxVal = Math.Max(maxVal, (int)evaluation);
+                    alpha = Math.Max(alpha, (int)evaluation);
+                    if(beta<=alpha) { break; }
+                    if(maxVal==evaluation) { position[0] = listofMoves[i].Red; position[1] = listofMoves[i].Black; position[2] = listofMoves[i].King; }
+                }
+                return position;
+            }
+            else
+            {
+                int minVal = int.MaxValue;
+                GetMoves(listofMoves, ref totalValidMoves, CheckerType.Black, blackParam, redParam, kingParam);
+                for (int i = 0; i < totalValidMoves; i++)
+                {
+                    position[3] = ComputerRec(listofMoves[i].Red, listofMoves[i].Black, listofMoves[i].King, ply - 1, alpha, beta, true)[3];
+                    minVal = Math.Max(minVal, (int)evaluation);
+                    beta = Math.Min(beta, (int)evaluation);
+                    if (beta <= alpha) { break; }
+                    if (minVal == evaluation) { position[0] = listofMoves[i].Red; position[1] = listofMoves[i].Black; position[2] = listofMoves[i].King; }
+                }
+                return position;
+            }
+        }
+
+      
+        private void ComputerMove()
+        {
+            MessageBox.Show("Computer's Turn");
+            List<object> newPos = ComputerRec(Red, Black, Kings, 0, int.MinValue, int.MaxValue, true);
+            drawBoard((uint)newPos[0], (uint)newPos[1], (uint)newPos[2]);
+            /*Thread[] ThreadArr = new Thread[48];
+
+            for (int curMove = 0; curMove < 48; curMove++)
+            {
+                ThreadArr[curMove] = new Thread(new ParameterizedThreadStart(ThreadMove));
+                ThreadArr[curMove].Start(InitialMoves[curMove]);
+            }
+*/
+        }
+
+        private void ThreadMove(uint redParam, uint blackParam, uint kingParam, int ply, int alpha, int beta, bool Maxplayer)
+        {
+           
+            
+        }
+
 
     }
 }
